@@ -51,8 +51,8 @@ never sends a transaction.
 **Prerequisites:** Node.js 22.12 or later, npm, and git (the SDK is installed from its repository).
 
 ```bash
-git clone https://github.com/DarkWalletRH/Darkwallet.git dark-starter
-cd dark-starter
+git clone https://github.com/DarkWalletRH/Darkwallet.git
+cd Darkwallet
 npm install        # also builds the SDK from source (its prepare script)
 npm run dev        # http://localhost:5173
 ```
@@ -94,7 +94,7 @@ and is meant to be replaced.
 
 | Package | Version | Why |
 |---|---|---|
-| [`@darkwalletrh/dark-sdk`](https://github.com/DarkWalletRH/dark-sdk) | `v0.4.1` (git tag) | Deployments, ABIs, Grumpkin arithmetic and the `/disclosure` entry point |
+| [`@darkwalletrh/dark-sdk`](https://github.com/DarkWalletRH/dark-sdk) | `v0.4.2` (git tag) | Deployments, ABIs, Grumpkin arithmetic and the `/disclosure` entry point |
 | [`viem`][viem] | `^2` | JSON-RPC reads and EIP-712 signature recovery |
 | [`@aztec/bb.js`](https://www.npmjs.com/package/@aztec/bb.js) | `5.0.0-nightly.20260522`, **exact** | Range-proof verification |
 | `react`, `react-dom` | `^19` | User interface |
@@ -156,8 +156,8 @@ and finally the proof: a Chaum-Pedersen (DLEQ) proof for exact amounts, or an Ul
 | Result | Meaning |
 |---|---|
 | **Verified** | The proof holds against the ciphertext on chain. The account's balance had the claimed value, or lay in the claimed range, at that block. |
-| **True, but not proof of ownership** | The claim matches the chain, but the account has only received deposits, so its balance is already public. Anyone could have produced the link. |
-| **Not verified** | Some check failed; the reason is shown. Nothing in the document has been confirmed, so none of its fields are displayed. |
+| **True, but proves nothing** | The claim matches the chain, but the account has only received deposits, so its balance is already public. Anyone could have read it from the chain, so the proof shows no knowledge of the account's private key. |
+| **Not verified** | Some check failed. Nothing in the document has been confirmed, so none of its fields are displayed; the verifier's reason goes to the browser console, not the page. |
 | **Expired** / **Unsupported document version** | Not checked. |
 | **Not checked** | A claim about a payment (`transfer_exact`, `flow_total_*`). These must be recomputed from event logs, which this template does not do. |
 | **No such disclosure** / **Revoked or expired** / **Does not decrypt** | The API has no such id, the link was revoked or reached its expiry, or the key does not open the document. |
@@ -237,7 +237,7 @@ See [darkwallet.cash/.well-known/security.txt](https://darkwallet.cash/.well-kno
 
 ## Status
 
-Version 1.0.0, built against `@darkwalletrh/dark-sdk` v0.4.1. Dark's contracts and SDK are
+Version 1.0.1, built against `@darkwalletrh/dark-sdk` v0.4.2. Dark's contracts and SDK are
 **pre-audit** and run under on-chain caps during the beta. Do not rely on them to secure funds you cannot
 afford to lose.
 

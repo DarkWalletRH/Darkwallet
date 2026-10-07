@@ -18,8 +18,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      # No lockfile is committed: the SDK is installed from a tag of its public repository and built
-      # by its own prepare script, as in the README's quick start.
-      - run: npm install --no-audit --no-fund
+      # package-lock.json pins the SDK to a commit of its public repository; npm ci installs exactly
+      # that and builds it with the SDK's own prepare script, as in the README's quick start.
+      - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run build

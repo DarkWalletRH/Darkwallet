@@ -4,12 +4,15 @@
 // locked, its caps and its pause flag are plain contract state that anyone can read.
 import { useEffect, useState } from "react";
 import { CHAIN_ID_MAINNET, ZERO_ADDRESS, darkVaultAbi, isDeployed } from "@darkwalletrh/dark-sdk";
+import { BaseError } from "viem";
 import { NETWORKS, formatUsdg, type ChainId, type Network } from "../lib/networks";
 
 async function readVault(network: Network) {
   const vault = { address: network.deployment.vault, abi: darkVaultAbi } as const;
-  // Every value is read at the same block, so the numbers describe one moment.
-  const blockNumber = await network.client.getBlockNumber();
+  // Every value is read at the same block, so the numbers describe one moment. Two blocks behind the
+  // tip: the public RPC is load-balanced, and a backend that has not reached the newest block yet
+  // answers "unsupported block number".
+  const blockNumber = (await network.client.getBlockNumber()) - 2n;
   const [tvl, caps, paused] = await Promise.all([
     network.client.readContract({ ...vault, functionName: "tvl", blockNumber }),
     network.client.readContract({ ...vault, functionName: "caps", blockNumber }),
@@ -17,6 +20,10 @@ async function readVault(network: Network) {
   ]);
   return { blockNumber, tvl, caps, paused };
 }
+
+/** viem's full message lists the request body, the call and its version; its first line is enough here. */
+const shortMessage = (e: unknown) =>
+  e instanceof BaseError ? e.shortMessage : e instanceof Error ? e.message : String(e);
 
 type VaultState = Awaited<ReturnType<typeof readVault>>;
 type Load = { status: "loading" } | { status: "error"; message: string } | { status: "ok"; data: VaultState };
@@ -42,7 +49,7 @@ export function Overview() {
     setLoad({ status: "loading" });
     readVault(NETWORKS[chainId]).then(
       (data) => current && setLoad({ status: "ok", data }),
-      (e: unknown) => current && setLoad({ status: "error", message: e instanceof Error ? e.message : String(e) }),
+      (e: unknown) => current && setLoad({ status: "error", message: shortMessage(e) }),
     );
     return () => {
       current = false;

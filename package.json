@@ -1,6 +1,6 @@
 {
   "name": "@darkwalletrh/dark-starter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "A minimal, read-only starter for building on Dark: network overview and in-browser disclosure verification.",
   "license": "MIT OR Apache-2.0",
@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@aztec/bb.js": "5.0.0-nightly.20260522",
-    "@darkwalletrh/dark-sdk": "github:DarkWalletRH/dark-sdk#v0.4.1",
+    "@darkwalletrh/dark-sdk": "github:DarkWalletRH/dark-sdk#v0.4.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "viem": "^2.57.0"

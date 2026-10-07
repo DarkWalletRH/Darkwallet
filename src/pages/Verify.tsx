@@ -2,7 +2,8 @@
 //
 // One rule governs the rendering: a document that did not verify has had nothing about it
 // confirmed, so none of its fields (label, account, amount) are shown. They are attacker-chosen
-// strings until the proof says otherwise.
+// strings until the proof says otherwise. That includes the verifier's `reason`, which the SDK
+// builds from those fields: each verdict gets fixed wording instead.
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { DarkDisclosureV2, DisclosureVerdict } from "@darkwalletrh/dark-sdk/disclosure";
 import { checkDisclosureLink, type LinkResult } from "../lib/verifyLink";
@@ -22,7 +23,11 @@ export function Verify() {
     e.preventDefault();
     setState({ phase: "checking" });
     try {
-      setState({ phase: "done", result: await checkDisclosureLink(link) });
+      const result = await checkDisclosureLink(link);
+      // The SDK's reason quotes document fields, so it is never rendered; it is still useful when
+      // debugging a link.
+      if (result.status === "checked" && result.reason) console.debug("verifyDisclosure:", result.reason);
+      setState({ phase: "done", result });
     } catch (err) {
       setState({ phase: "error", message: err instanceof Error ? err.message : String(err) });
     }
@@ -103,7 +108,7 @@ function Result({ result }: { result: LinkResult }) {
       return (
         <>
           {testnet}
-          <Verdict doc={result.doc} verdict={result.verdict} reason={result.reason} />
+          <Verdict doc={result.doc} verdict={result.verdict} />
         </>
       );
   }
@@ -111,13 +116,13 @@ function Result({ result }: { result: LinkResult }) {
 
 const HEADLINE: Record<DisclosureVerdict, string> = {
   verified: "Verified",
-  public_balance: "True, but not proof of ownership",
+  public_balance: "True, but proves nothing",
   invalid: "Not verified",
   expired: "Expired",
   unsupported_version: "Unsupported document version",
 };
 
-function Verdict({ doc, verdict, reason }: { doc: DarkDisclosureV2; verdict: DisclosureVerdict; reason?: string | undefined }) {
+function Verdict({ doc, verdict }: { doc: DarkDisclosureV2; verdict: DisclosureVerdict }) {
   const confirmed = verdict === "verified" || verdict === "public_balance";
   // Only read the claim once the SDK has validated it: an unverified document can hold anything.
   const claim = !confirmed
@@ -137,14 +142,16 @@ function Verdict({ doc, verdict, reason }: { doc: DarkDisclosureV2; verdict: Dis
       {verdict === "public_balance" && (
         <p>
           The claim of <strong>{claim}</strong> matches the chain, but this account has only ever received deposits, so
-          its balance is already public. Anyone could have produced this link. It is not evidence that the sender
+          its balance is already public. Anyone could have read it from the chain. It is not evidence that the sender
           controls the account.
         </p>
       )}
       {!confirmed && (
         <p>
-          {reason ? `Reason: ${reason}.` : "The document did not pass verification."} Nothing in it has been confirmed,
-          so none of it is shown.
+          {verdict === "unsupported_version"
+            ? "This document uses a format this viewer does not support."
+            : "The document did not pass verification."}{" "}
+          Nothing in it has been confirmed, so none of it is shown.
         </p>
       )}
       {confirmed && (

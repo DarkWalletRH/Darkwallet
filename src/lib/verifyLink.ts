@@ -70,12 +70,20 @@ export async function checkDisclosureLink(link: string): Promise<LinkResult> {
   const network = NETWORKS[id.startsWith("t_") ? CHAIN_ID_TESTNET : CHAIN_ID_MAINNET];
 
   // 3. Fetch the sealed blob. This is the only request that reaches Dark, and it carries the id
-  //    only: the key stays in this tab.
+  //    only: the key stays in this tab. Only the Dark API's own answers count as statements about
+  //    the link: a 404 from the host itself (the /dark-api proxy is missing) or from a CDN in the
+  //    path is an infrastructure problem, not a missing disclosure, and so is a host that answers
+  //    every path with index.html.
   const res = await fetch(`${network.apiBase}/v1/disclosures/${encodeURIComponent(id)}`, { cache: "no-store" });
-  if (res.status === 404) return { status: "not_found", network };
-  if (res.status === 410) return { status: "gone", network };
-  if (!res.ok) throw new Error(`the Dark API answered HTTP ${res.status}`);
-  const { blob } = (await res.json()) as { blob: string };
+  const body = (await res.json().catch(() => null)) as { blob?: unknown; error?: { code?: unknown } } | null;
+  if (res.status === 404 && body?.error?.code === "NOT_FOUND") return { status: "not_found", network };
+  if (res.status === 410 && body?.error?.code === "GONE") return { status: "gone", network };
+  const blob = body?.blob;
+  if (!res.ok || typeof blob !== "string") {
+    throw new Error(
+      `the disclosure proxy answered HTTP ${res.status} without a Dark API response; is ${network.apiBase}/ forwarded? See "Deploying" in the README`,
+    );
+  }
 
   // 4. Decrypt locally. `openDisclosure` returns null rather than throwing on a bad key or blob.
   const doc = openDisclosure(fromBase64url(blob), key, id);
@@ -120,8 +128,9 @@ export async function checkDisclosureLink(link: string): Promise<LinkResult> {
   // 7. Verify. The SDK checks the version, expiry, pinned addresses, registry key, ciphertext,
   //    context hash, the owner's EIP-712 signature and the proof itself, and returns a verdict for
   //    every malformed document instead of throwing. The SDK would also turn an exception from the
-  //    range verifier into "invalid"; it is rethrown instead, so a verifier that fails to load is
-  //    reported as a failure to check, not as a bad proof.
+  //    range verifier into "invalid"; it is caught here instead, so a verifier that fails to load is
+  //    reported as a failure to check, not as a bad proof. Its message is logged, not shown: a hex
+  //    error from viem quotes its input, which here is the document's proof field.
   let loadError: unknown;
   const result = await verifyDisclosure({
     doc,
@@ -133,6 +142,9 @@ export async function checkDisclosureLink(link: string): Promise<LinkResult> {
         throw e;
       }),
   });
-  if (loadError) throw loadError;
+  if (loadError) {
+    console.error(loadError);
+    throw new Error("the range verifier could not run");
+  }
   return { status: "checked", network, doc, verdict: result.verdict, reason: result.reason };
 }
